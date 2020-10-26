@@ -1,16 +1,19 @@
 import bs4
 import requests
+import threading
 
-class Scraper:
+class Scraper(threading.Thread):
 
     def __init__(self):
-        self.links = []
+        self.exc = None
+        self.link = ""
         self.prices = {}
         self.check_timeout = ""
+        threading.Thread.__init__(self)
 
-    def add_link(self, link=None):
+    def set_link(self, link=None):
         if link is not None:
-            self.links.append(link)
+            self.link = link
 
     def set_check_timeout(self, check_timeout=None):
         if check_timeout is not None:
@@ -19,28 +22,30 @@ class Scraper:
     def get_prices(self):
         return self.prices
 
-    def get_links(self):
-        return self.links
+    def get_link(self):
+        return self.link
+
+    def join(self):
+        threading.Thread.join(self)
+        # Since join() returns in caller thread we re-raise the caught exception if any was caught
+        if self.exc:
+            raise self.exc
 
 class EbayScraper(Scraper):
 
     def __init__(self):
         super().__init__()
 
-    def do_scraping(self, links=None):
+    def run(self):
         """
         Return the price of the auctions of eEay
         :return: List - the price of the auctions
         """
 
-        if links is not None:
-            self.links = links
-
-        for link in self.links:
-            web_page = requests.get(link)
+        web_page = requests.get(self.link)
+        try:
             web_page.raise_for_status()
             scraping = bs4.BeautifulSoup(web_page.text, 'html.parser')
-
             prcIsum = None
             prcIsum_bidPrice = None
 
@@ -48,6 +53,7 @@ class EbayScraper(Scraper):
                 prcIsum = attr.get("content")
             for attr in scraping.findAll("span", {"id": "prcIsum_bidPrice"}):
                 prcIsum_bidPrice = attr.get("content")
-            self.prices.update({link: float(prcIsum if prcIsum is not None else prcIsum_bidPrice)})
+            self.prices.update({self.link: float(prcIsum if prcIsum is not None else prcIsum_bidPrice)})
 
-        return self.prices
+        except Exception as e:
+            self.exc = e

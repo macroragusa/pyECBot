@@ -1,1 +1,1 @@
-from .scraper import EbayScraper
+from .scraper import ecommerce_switcher

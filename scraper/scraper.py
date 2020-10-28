@@ -1,15 +1,12 @@
 import bs4
 import requests
-import threading
 
-class Scraper(threading.Thread):
+class Scraper:
 
     def __init__(self):
-        self.exc = None
         self.link = ""
         self.prices = {}
         self.check_timeout = ""
-        threading.Thread.__init__(self)
 
     def set_link(self, link=None):
         if link is not None:
@@ -25,24 +22,21 @@ class Scraper(threading.Thread):
     def get_link(self):
         return self.link
 
-    def join(self):
-        threading.Thread.join(self)
-        # Since join() returns in caller thread we re-raise the caught exception if any was caught
-        if self.exc:
-            raise self.exc
-
 class EbayScraper(Scraper):
 
     def __init__(self):
         super().__init__()
 
-    def run(self):
+    def do_scraping(self, link=None):
         """
-        Return the price of the auctions of eEay
-        :return: List - the price of the auctions
+        Return the price of the auction of eEay
+        :param link: String - link of ebay auction
+        :return: Dictionary - the price of the auction
         """
-
+        if link is not None:
+            self.link = link
         web_page = requests.get(self.link)
+
         try:
             web_page.raise_for_status()
             scraping = bs4.BeautifulSoup(web_page.text, 'html.parser')
@@ -55,5 +49,21 @@ class EbayScraper(Scraper):
                 prcIsum_bidPrice = attr.get("content")
             self.prices.update({self.link: float(prcIsum if prcIsum is not None else prcIsum_bidPrice)})
 
-        except Exception as e:
-            self.exc = e
+        except Exception:
+            pass
+
+        return self.prices
+
+
+def ecommerce_switcher(link):
+    """
+    this function was created to be called for threading
+    :param link: String - link of auction
+    :return: Dictionary - the auction price of each supported site
+    """
+    result = {}
+    if link.split("/")[2] == "www.ebay.it":
+        ebay = EbayScraper()
+        result.update(ebay.do_scraping(link))
+
+    return result

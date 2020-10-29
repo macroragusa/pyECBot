@@ -51,19 +51,3 @@ class EbayScraper(Scraper):
 
         except Exception:
             pass
-
-        return self.prices
-
-
-def ecommerce_switcher(link):
-    """
-    this function was created to be called for threading
-    :param link: String - link of auction
-    :return: Dictionary - the auction price of each supported site
-    """
-    result = {}
-    if link.split("/")[2] == "www.ebay.it":
-        ebay = EbayScraper()
-        result.update(ebay.do_scraping(link))
-
-    return result
